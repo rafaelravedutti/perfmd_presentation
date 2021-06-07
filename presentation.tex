@@ -91,27 +91,44 @@
 
   { % Motivation
     \setbeamertemplate{footline}{}
-    \begin{frame}[noframenumbering]{Progress so far:}
+    \begin{frame}[noframenumbering]{Idea:}
         \begin{itemize}
-            \item Idea: Exec + Bandwidth + Latency contributions
-            \item Gather Benchmark
-            \item ASM variants for gather
-            \item OSACA Analysis
-            \item Changes to MD-Bench:
+            \item Separate contributions:
             \begin{itemize}
-                \item AoS layout
-                \item Explicit data types
-                \item Stubbed force calculation within L1 cache
+                \item Core execution
+                \item Bandwidth
+                \item Latency
             \end{itemize}
-            \item Assembly Analysis of these different variants
-            \begin{itemize}
-                \item Three variants
-                \item "Prefetching" instructions
-                \item Software vs Hardware Gathers
-            \end{itemize}
+            \item Evaluate core execution measurements with IACA and OSACA outputs
+            \item Separate bandwidth from latency
+            \item Fit "randomness" of MD accesses into model
+            \item Understand how the assembly works and which different strategies can be used!
+            \item Compare performance for different strategies!
         \end{itemize}
     \end{frame}
   }
+  \begin{frame}[noframenumbering]{Progress so far:}
+      \begin{itemize}
+          \item MD-Bench
+          \begin{itemize}
+              \item AoS and SoA layouts
+              \item Different data types
+              \item Stubbed force calculation within cache sizes
+          \end{itemize}
+          \item Gather Benchmark
+          \begin{itemize}
+              \item Written in pure assembly
+              \item AoS and SoA variants for MD
+          \end{itemize}
+          \item OSACA and IACA Analysis
+          \item Analysis of Assembly
+          \begin{itemize}
+              \item Three variants
+              \item "Prefetching" instructions
+              \item Software vs Hardware Gathers
+          \end{itemize}
+      \end{itemize}
+  \end{frame}
 
   % First, talk about MD-Bench, what it is, what it computes, how it works and etc
   % Talk about our changes: AoS Layout, multiple data types and stubbed force benchmark
@@ -139,11 +156,6 @@
         \item Number of unit cells in x, y and y dimensions 
       \end{itemize}
       \item 4 atoms per unit cell with about 64 neighbors per atom
-    \end{itemize}
-  \end{frame}
-
-  \begin{frame}[fragile]{MD-Bench}
-    \begin{itemize}
       \item Improvements:
       \begin{itemize}
         \item Stubbed force-calculation to run within L1, L2 and L3 caches
@@ -333,7 +345,7 @@ vgatherdpd zmm18{k3}, QWORD PTR [rdi+ymm3*8]    # zmm18 <- atom->x[j * 3]
 
   \begin{frame}{Stubbed Force Calculation}
   \centering
-    \includegraphics[width=9cm]{stubbed_force_mdbench.png}
+    \includegraphics[width=11cm]{stubbed_force_mdbench.png}
   \end{frame}
 
   \begin{frame}[fragile]{OSACA Analysis}
@@ -403,16 +415,277 @@ Loop-Carried Dependencies Analysis Report
     \end{lstlisting}
   \end{frame}
 
-  \begin{frame}[fragile]{Running Internal Loop several times}
+  \begin{frame}[fragile]{IACA Analysis}
+    \vspace{-20pt}
+    \begin{lstlisting}[basicstyle=\tt\fontsize{4pt}{6pt}\selectfont]
+Throughput Analysis Report
+--------------------------
+Block Throughput: 36.70 Cycles       Throughput Bottleneck: Backend
+Loop Count:  23
+Port Binding In Cycles Per Iteration:
+--------------------------------------------------------------------------------------------------
+|  Port  |   0   -  DV   |   1   |   2   -  D    |   3   -  D    |   4   |   5   |   6   |   7   |
+--------------------------------------------------------------------------------------------------
+| Cycles | 17.5     0.0  | 11.0  | 20.5    17.0  | 20.5    17.0  |  7.0  | 20.5  |  7.0  |  0.0  |
+--------------------------------------------------------------------------------------------------
+...
+| Num Of   |                    Ports pressure in cycles                         |      |
+|  Uops    |  0  - DV    |  1   |  2  -  D    |  3  -  D    |  4   |  5   |  6   |  7   |
+-----------------------------------------------------------------------------------------
+|   1*     |             |      |             |             |      |      |      |      | mov r13, r8
+|   1      |             | 1.0  |             |             |      |      |      |      | imul r13, rcx
+|   1      |             |      |             |             |      | 1.0  |      |      | vbroadcastsd zmm2, xmm6
+|   1      |             |      |             |             |      | 1.0  |      |      | vbroadcastsd zmm1, xmm7
+|   1      |             |      |             |             |      | 1.0  |      |      | vbroadcastsd zmm0, xmm12
+|   1      |             |      |             |             |      |      | 1.0  |      | movsxd rbx, r12d
+|   1      |             |      |             |             |      |      | 1.0  |      | add r13, r10
+|   2^     |             |      | 0.5         | 0.5         | 1.0  |      |      |      | mov qword ptr [rsp-0x40], rax
+|   2^     |             |      | 0.5         | 0.5         | 1.0  |      |      |      | mov qword ptr [rsp-0x38], r8
+|   2^     |             |      | 0.5         | 0.5         | 1.0  |      |      |      | mov qword ptr [rsp-0x30], r10
+|   2^     |             |      | 0.5         | 0.5         | 1.0  |      |      |      | mov qword ptr [rsp-0x28], rsi
+|   2^     |             |      | 0.5         | 0.5         | 1.0  |      |      |      | mov qword ptr [rsp-0x20], rcx
+|   2^     |             |      | 0.5         | 0.5         | 1.0  |      |      |      | mov qword ptr [rsp-0x50], r9
+|   2^     |             |      | 0.5         | 0.5         | 1.0  |      |      |      | mov qword ptr [rsp-0x48], rdx
+|   1      |             |      | 0.5     0.5 | 0.5     0.5 |      |      |      |      | vmovdqu ymm3, ymmword ptr [r13+rbx*4]
+|   1      |             | 1.0  |             |             |      |      |      |      | vpaddd ymm4, ymm3, ymm3
+|   1      |             | 1.0  |             |             |      |      |      |      | vpaddd ymm3, ymm3, ymm4
+|   1      |             |      | 0.5     0.5 | 0.5     0.5 |      |      |      |      | mov r10d, dword ptr [r13+rbx*4]
+|   1      |             |      | 0.5     0.5 | 0.5     0.5 |      |      |      |      | mov r9d, dword ptr [r13+rbx*4+0x4]
+|   1      |             |      | 0.5     0.5 | 0.5     0.5 |      |      |      |      | mov r8d, dword ptr [r13+rbx*4+0x8]
+|   1      |             |      | 0.5     0.5 | 0.5     0.5 |      |      |      |      | mov esi, dword ptr [r13+rbx*4+0xc]
+|   1      |             | 1.0  |             |             |      |      |      |      | lea r10d, ptr [r10+r10*2]
+|   1      |             |      | 0.5     0.5 | 0.5     0.5 |      |      |      |      | mov ecx, dword ptr [r13+rbx*4+0x10]
+|   1      |             | 1.0  |             |             |      |      |      |      | lea r9d, ptr [r9+r9*2]
+    \end{lstlisting}
   \end{frame}
 
-  \begin{frame}[fragile]{Cycles when running internal loop several time}
+  \begin{frame}[fragile]{IACA Analysis}
+    \vspace{-20pt}
+    \begin{lstlisting}[basicstyle=\tt\fontsize{4pt}{6pt}\selectfont]
+|   1      |             |      | 0.5     0.5 | 0.5     0.5 |      |      |      |      | mov edx, dword ptr [r13+rbx*4+0x14]
+|   1      |             | 1.0  |             |             |      |      |      |      | lea r8d, ptr [r8+r8*2]
+|   1      |             |      | 0.5     0.5 | 0.5     0.5 |      |      |      |      | mov eax, dword ptr [r13+rbx*4+0x18]
+|   1      |             | 1.0  |             |             |      |      |      |      | lea esi, ptr [rsi+rsi*2]
+|   1      |             |      | 0.5     0.5 | 0.5     0.5 |      |      |      |      | mov r15d, dword ptr [r13+rbx*4+0x1c]
+|   1      |             | 1.0  |             |             |      |      |      |      | lea ecx, ptr [rcx+rcx*2]
+|   1      |             | 1.0  |             |             |      |      |      |      | lea edx, ptr [rdx+rdx*2]
+|   1      |             | 1.0  |             |             |      |      |      |      | lea eax, ptr [rax+rax*2]
+|   1      |             | 1.0  |             |             |      |      |      |      | lea r15d, ptr [r15+r15*2]
+|   1      |             |      |             |             |      | 1.0  |      |      | vpcmpeqb k1, xmm0, xmm0
+|   1      |             |      |             |             |      | 1.0  |      |      | vpcmpeqb k2, xmm0, xmm0
+|   1      |             |      |             |             |      | 1.0  |      |      | vpcmpeqb k3, xmm0, xmm0
+|   1*     |             |      |             |             |      |      |      |      | vpxord zmm4, zmm4, zmm4
+|   1*     |             |      |             |             |      |      |      |      | vpxord zmm17, zmm17, zmm17
+|   1*     |             |      |             |             |      |      |      |      | vpxord zmm18, zmm18, zmm18
+|   5^     | 2.0         |      | 4.0     4.0 | 4.0     4.0 |      |      | 1.0  |      | vgatherdpd zmm4, k1, zmmword ptr [rdi+ymm3*8+0x10]
+|   5^     | 1.5         |      | 4.0     4.0 | 4.0     4.0 |      | 0.5  | 1.0  |      | vgatherdpd zmm17, k2, zmmword ptr [rdi+ymm3*8+0x8]
+|   5^     | 1.0         |      | 4.0     4.0 | 4.0     4.0 |      | 1.0  | 1.0  |      | vgatherdpd zmm18, k3, zmmword ptr [rdi+ymm3*8]
+|   1      |             |      |             |             |      |      | 1.0  |      | add r12d, 0x8
+|   1      |             |      |             |             |      |      | 1.0  |      | add rbx, 0x8
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vsubpd zmm26, zmm0, zmm4
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vsubpd zmm24, zmm1, zmm17
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vsubpd zmm23, zmm2, zmm18
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vmulpd zmm3, zmm24, zmm24
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vfmadd231pd zmm3, zmm23, zmm23
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vfmadd231pd zmm3, zmm26, zmm26
+|   3      | 2.0         |      |             |             |      | 1.0  |      |      | vrcp14pd zmm22, zmm3
+|   1      |             |      |             |             |      | 1.0  |      |      | vcmppd k2, zmm3, zmm14, 0x1
+|   1      |             |      |             |             |      | 1.0  |      |      | vfpclasspd k0, zmm22, 0x1e
+|   2^     | 1.0         |      | 0.5     0.5 | 0.5     0.5 |      |      |      |      | vfnmadd213pd zmm3, zmm22, qword ptr [rip]{1to8}
+|   1      | 1.0         |      |             |             |      |      |      |      | knotw k1, k0
+|   1      |             |      |             |             |      | 1.0  |      |      | vmulpd zmm4, zmm3, zmm3
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vfmadd213pd zmm22{k1}, zmm3, zmm22
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vfmadd213pd zmm22{k1}, zmm4, zmm22
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vmulpd zmm17, zmm22, zmm13
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vmulpd zmm19, zmm22, zmm10
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vmulpd zmm20, zmm22, zmm17
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vmulpd zmm18, zmm22, zmm20
+    \end{lstlisting}
   \end{frame}
 
-  \begin{frame}[fragile]{Conclusions about Texec}
+  \begin{frame}[fragile]{IACA Analysis}
+    \vspace{-20pt}
+    \begin{lstlisting}[basicstyle=\tt\fontsize{4pt}{6pt}\selectfont]
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vfmsub213pd zmm22, zmm20, zmm5
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vmulpd zmm21, zmm18, zmm19
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vmulpd zmm25, zmm21, zmm22
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vfmadd231pd zmm9{k2}, zmm25, zmm23
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vfmadd231pd zmm8{k2}, zmm25, zmm24
+|   1      | 0.5         |      |             |             |      | 0.5  |      |      | vfmadd231pd zmm11{k2}, zmm25, zmm26
+|   1*     |             |      |             |             |      |      |      |      | cmp r12d, r14d
+|   0*F    |             |      |             |             |      |      |      |      | jb 0xfffffffffffffed3
+Total Num Of Uops: 91
+Analysis Notes:
+Backend allocation was stalled due to unavailable allocation resources.
+There were bubbles in the frontend.
+    \end{lstlisting}
+  \end{frame}
+
+  \begin{frame}[fragile]{Cycles per iteration with AoS AVX512 kernels}
+    \includegraphics[width=9cm]{results_aos_casclakesp2_neighbor_vol.pdf}
+  \end{frame}
+
+  \begin{frame}[fragile]{}
+    \begin{itemize}
+      \item \textbf{Issue: internal loop is not executed enough times for each atom!}
+      \item Overhead to fill pipeline with instructions has a considerable effect on the cycles per iteration!
+      \item Cycles measured for some cases are considerably higher than OSACA/IACA predictions!
+      \item \textbf{Solution: repeat the most internal loop}
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]{Neighbors Loop}
+    \begin{lstlisting}
+...
+for(int n = 0; n < ntimes; n++) {
+  for(int k = 0; k < numneighs; k++) {
+    int j = neighs[k];
+    MD_FLOAT delx = xtmp - atom_x(j);
+    MD_FLOAT dely = ytmp - atom_y(j);
+    MD_FLOAT delz = ztmp - atom_z(j);
+    MD_FLOAT rsq = delx * delx + dely * dely + delz * delz;
+
+    if(rsq < cutforcesq) {
+      MD_FLOAT sr2 = 1.0 / rsq;
+      MD_FLOAT sr6 = sr2 * sr2 * sr2 * sigma6;
+      MD_FLOAT force = 48.0 * sr6 * (sr6 - 0.5) * sr2 * epsilon;
+      fix += delx * force;
+      fiy += dely * force;
+      fiz += delz * force;
+    }
+  }
+}
+...
+    \end{lstlisting}
+  \end{frame}
+
+  \begin{frame}[fragile]{Cycles per iteration with AoS AVX512 kernels (repeating internal loop)}
+    \includegraphics[width=9cm]{results_aos_casclakesp2_rep_neighbor_vol.pdf}
+  \end{frame}
+
+  \begin{frame}[fragile]{Stubbed Force Calculation}
+    \begin{itemize}
+      \item Require internal loop repetition to provide more accurate results
+      \item Cycles increase slightly from L2 to L3 sizes for neighbor lists volume
+      \item Increasing the atoms per unit cells (\# neighbors) reduces cycles per iteration
+      \begin{itemize}
+        \item Until which point?
+      \end{itemize}
+      \item \textbf{Is there a better way to measure core execution contribution?}
+      \item What about data traffic contributions?
+    \end{itemize}
   \end{frame}
 
   \begin{frame}[fragile]{gather-bench}
+    \begin{itemize}
+      \item Benchmark for gathering data into registers
+      \item Measure impact of gathers with several data volumes with respect to cache lines touched
+      \item Input: stride of elements to be gathered
+      \item Support for AVX2 and AVX512 (currently)
+      \item Based on previous benchmark, some changes:
+      \begin{itemize}
+        \item Gather kernels explicitly written in Assembly
+        \item MD variants: AoS and SoA
+        \item Tests for correctness
+      \end{itemize}
+      \item Next steps to implement: SW gathers, evaluate with lea+mov instructions
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]{AVX512 Gather (simple array):}
+    \vspace{-17.5pt}
+    \begin{lstlisting}[language={[x64]Assembler},basicstyle=\tt\tiny]
+...
+xor   rax, rax
+.align 16
+1:
+vpcmpeqb k1, xmm0, xmm0
+vpcmpeqb k2, xmm0, xmm0
+vpcmpeqb k3, xmm0, xmm0
+vpcmpeqb k4, xmm0, xmm0
+vmovdqu ymm0, [rsi + rax*4]
+vmovdqu ymm1, [rsi + rax*4+32]
+vmovdqu ymm2, [rsi + rax*4+64]
+vmovdqu ymm3, [rsi + rax*4+96]
+vpxord zmm4, zmm4, zmm4
+vpxord zmm5, zmm5, zmm5
+vpxord zmm6, zmm6, zmm6
+vpxord zmm7, zmm7, zmm7
+vgatherdpd zmm4{k1}, [rdi + ymm0*8]
+vgatherdpd zmm5{k2}, [rdi + ymm1*8]
+vgatherdpd zmm6{k3}, [rdi + ymm2*8]
+vgatherdpd zmm7{k4}, [rdi + ymm3*8]
+
+# Required for test
+#vmovapd [rcx + rax*8],     zmm4
+#vmovapd [rcx + rax*8+64],  zmm5
+#vmovapd [rcx + rax*8+128], zmm6
+#vmovapd [rcx + rax*8+192], zmm7
+
+addq rax, 32
+cmpq rax, rdx
+jl 1b
+...
+    \end{lstlisting}
+  \end{frame}
+
+  \begin{frame}[fragile]{Results for simple array}
+  \end{frame}
+
+  \begin{frame}[fragile]{AVX512 Gather (AoS):}
+    \vspace{-17.5pt}
+    \begin{lstlisting}[language={[x64]Assembler},basicstyle=\tt\tiny]
+...
+xor   rax, rax
+.align 16
+1:
+
+vmovdqu ymm3, YMMWORD PTR [rsi + rax * 4]
+vpaddd ymm4, ymm3, ymm3
+vpaddd ymm3, ymm3, ymm4
+vpcmpeqb k1, xmm5, xmm5
+vpcmpeqb k2, xmm5, xmm5
+vpcmpeqb k3, xmm5, xmm5
+vpxord zmm0, zmm0, zmm0
+vpxord zmm1, zmm1, zmm1
+vpxord zmm2, zmm2, zmm2
+vgatherdpd zmm0{k1}, [rdi + ymm3*8]
+vgatherdpd zmm1{k2}, [8 + rdi + ymm3*8]
+vgatherdpd zmm2{k3}, [16 + rdi + ymm3*8]
+
+# Required for test
+#vmovupd [rcx + rax*8], zmm0
+#lea rbx, [rcx + rdx*8]
+#vmovupd [rbx + rax*8], zmm1
+#lea r9, [rbx + rdx*8]
+#vmovupd [r9 + rax*8], zmm2
+
+addq rax, 8
+cmpq rax, rdx
+jl 1b
+...
+    \end{lstlisting}
+  \end{frame}
+
+  \begin{frame}[fragile]{Results for AoS}
+  \end{frame}
+
+  \begin{frame}[fragile]{Conclusion}
+    \begin{itemize}
+      \item Measure contributions:
+      \begin{itemize}
+        \item Core execution (stubbed force)
+        \item Latency and Bandwidth (gather-bench)
+      \end{itemize}
+      \item Correlate "randomness" of memory access in MD to memory contributions (worst and best case based on strides?)
+      \item Investigate performance for different strategies/choices:
+      \begin{itemize}
+        \item AoS vs SoA
+        \item Compiler
+        \item HW vs. SW gather
+        \item Different potentials (EAM)
+      \end{itemize}
+    \end{itemize}
   \end{frame}
 
   % List example
