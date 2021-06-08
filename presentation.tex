@@ -99,11 +99,10 @@
                 \item Bandwidth
                 \item Latency
             \end{itemize}
-            \item Evaluate core execution measurements with IACA and OSACA outputs
-            \item Separate bandwidth from latency
-            \item Fit "randomness" of MD accesses into model
-            \item Understand how the assembly works and which different strategies can be used!
-            \item Compare performance for different strategies!
+            \item Correlate core execution measurements with IACA and OSACA outputs
+            \item "Randomness" of MD accesses
+            \item Understand the generated assembly
+            \item Explore and compare performance for different strategies
         \end{itemize}
     \end{frame}
   }
@@ -112,7 +111,7 @@
           \item MD-Bench
           \begin{itemize}
               \item AoS and SoA layouts
-              \item Different data types
+              \item Different atom types
               \item Stubbed force calculation within cache sizes
           \end{itemize}
           \item Gather Benchmark
@@ -195,7 +194,7 @@ for(int n = 0; n < param.ntimes; n++) {
   \begin{frame}[fragile]{Force Computation Loop}
     \vspace{-15.5pt}
     \begin{lstlisting}[basicstyle=\tt\tiny]
-for(int i = 0; i < Nlocal; i++) {
+for(int i = 0; i < Nlocal; i++) { // 131072 for standard case
   neighs = &neighbor->neighbors[i * neighbor->maxneighs];
   int numneighs = neighbor->numneigh[i];
   MD_FLOAT xtmp = atom_x(i);
@@ -205,7 +204,7 @@ for(int i = 0; i < Nlocal; i++) {
   MD_FLOAT fiy = 0;
   MD_FLOAT fiz = 0;
 
-  for(int k = 0; k < numneighs; k++) {
+  for(int k = 0; k < numneighs; k++) { // average of 64 neighbors per atom
     int j = neighs[k];
     MD_FLOAT delx = xtmp - atom_x(j);
     MD_FLOAT dely = ytmp - atom_y(j);
@@ -525,6 +524,10 @@ There were bubbles in the frontend.
     \includegraphics[width=9cm]{results_aos_casclakesp2_neighbor_vol.pdf}
   \end{frame}
 
+  \begin{frame}[fragile]{Cycles per iteration with SoA AVX512 kernels}
+    \includegraphics[width=9cm]{results_soa_casclakesp2_neighbor_vol.pdf}
+  \end{frame}
+
   \begin{frame}[fragile]{}
     \begin{itemize}
       \item \textbf{Issue: internal loop is not executed enough times for each atom!}
@@ -559,14 +562,13 @@ for(int n = 0; n < ntimes; n++) {
     \end{lstlisting}
   \end{frame}
 
-  \begin{frame}[fragile]{Cycles per iteration with AoS AVX512 kernels (repeating internal loop)}
-    \includegraphics[width=9cm]{results_aos_casclakesp2_rep_neighbor_vol.pdf}
+  \begin{frame}[fragile]{Cycles per iteration with SoA AVX512 kernels (repeating internal loop)}
+    \includegraphics[width=9cm]{results_soa_casclakesp2_rep_neighbor_vol.pdf}
   \end{frame}
 
   \begin{frame}[fragile]{Stubbed Force Calculation}
     \begin{itemize}
       \item Require internal loop repetition to provide more accurate results
-      \item Cycles increase slightly from L2 to L3 sizes for neighbor lists volume
       \item Increasing the atoms per unit cells (\# neighbors) reduces cycles per iteration
       \begin{itemize}
         \item Until which point?
@@ -669,6 +671,7 @@ jl 1b
   \end{frame}
 
   \begin{frame}[fragile]{Results for AoS}
+    \includegraphics[width=9cm]{gather_md_skylakesp2_results.pdf}
   \end{frame}
 
   \begin{frame}[fragile]{Conclusion}
@@ -678,7 +681,12 @@ jl 1b
         \item Core execution (stubbed force)
         \item Latency and Bandwidth (gather-bench)
       \end{itemize}
-      \item Correlate "randomness" of memory access in MD to memory contributions (worst and best case based on strides?)
+      \item Correlate "randomness" of memory access in MD to memory contributions
+      \begin{itemize}
+        \item Irregular accesses on gather
+        \item Cache simulator
+        \item Reuse distance
+      \end{itemize}
       \item Investigate performance for different strategies/choices:
       \begin{itemize}
         \item AoS vs SoA
