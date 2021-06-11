@@ -91,7 +91,7 @@
 
   { % Motivation
     \setbeamertemplate{footline}{}
-    \begin{frame}[noframenumbering]{Idea:}
+    \begin{frame}[noframenumbering]{Overview}
         \begin{itemize}
             \item Separate contributions:
             \begin{itemize}
@@ -106,7 +106,7 @@
         \end{itemize}
     \end{frame}
   }
-  \begin{frame}[noframenumbering]{Progress so far:}
+  \begin{frame}[noframenumbering]{Progress so far}
       \begin{itemize}
           \item MD-Bench
           \begin{itemize}
@@ -263,12 +263,14 @@ for(int k = 0; k < numneighs; k++) {
 
   \begin{frame}[fragile]{Hardware vs. Software gather}
   \centering
-    \includegraphics[width=12cm]{hw_vs_sw_gather_md.png}
+    \includegraphics[width=11cm]{hw_vs_sw_gather_md.png}
+    \\Iapichino, L.; Karakasis, V.; Karmakar, A.; Hammer, N.; Petkova, M.; Dolag, K.: Quickly selecting nearest particles in the Friends-of-Friends component of Gadget. Frankfurt 2015
   \end{frame}
 
   \begin{frame}[fragile]{Hardware vs. Software gather}
   \centering
     \includegraphics[width=10cm]{minimd_hw_vs_sw_results_table.png}
+    \\Iapichino, L.; Karakasis, V.; Karmakar, A.; Hammer, N.; Petkova, M.; Dolag, K.: Quickly selecting nearest \\particles in the Friends-of-Friends component of Gadget. Frankfurt 2015
   \end{frame}
 
   \begin{frame}[fragile]{Assembly Analysis}
@@ -286,7 +288,7 @@ for(int k = 0; k < numneighs; k++) {
     \end{itemize}
   \end{frame}
 
-  \begin{frame}[fragile]{Assembly Analysis:}
+  \begin{frame}[fragile]{Assembly Analysis}
     \vspace{-17.5pt}
     \begin{lstlisting}[language={[x64]Assembler},basicstyle=\tt\tiny]
 vmovdqu   ymm3, YMMWORD PTR [r13+rbx*4]         # ymm3 <- neighs[k]
@@ -322,7 +324,7 @@ vgatherdpd zmm18{k3}, QWORD PTR [rdi+ymm3*8]    # zmm18 <- atom->x[j * 3]
     \end{lstlisting}
   \end{frame}
 
-  \begin{frame}[fragile]{Assembly Analysis:}
+  \begin{frame}[fragile]{Assembly Analysis}
     When removing mov+lea instructions, performance is better on Cascade Lake:
     \begin{verbatim}
     With lea+mov:
@@ -353,39 +355,41 @@ vgatherdpd zmm18{k3}, QWORD PTR [rdi+ymm3*8]    # zmm18 <- atom->x[j * 3]
                                      Port pressure in cycles
  0   - 0DV  |  1   |  2   -  2D  |  3   -  3D  |  4   |  5   |  6   |  7   ||  CP  | LCD  |
 -------------------------------------------------------------------------------------------------
-            |      |             |             |      |      |      |      ||      |      | X vpcmpeqb  %xmm0, %xmm0, %k2
-0.00        | 0.50 |             |             |      | 0.00 | 0.50 |      ||      |      |   addl      $8, %r9d
-            |      |             |             |      |      |      |      ||      |      | X vpcmpeqb  %xmm0, %xmm0, %k1
-            |      |             |             |      |      |      |      ||      |      | X vpcmpeqb  %xmm0, %xmm0, %k3
-            |      | 0.50   0.50 | 0.50   0.50 |      |      |      |      ||  4.0 |      |   vmovdqu   (%rcx,%r14,4), %ymm3
-0.00        | 0.50 |             |             |      | 0.00 | 0.50 |      ||      |      |   addq      $8, %r14
-0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vpxord    %zmm5, %zmm5, %zmm5
-0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vpxord    %zmm4, %zmm4, %zmm4
-0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vpxord    %zmm6, %zmm6, %zmm6
-1.50        | 0.50 | 4.00   0.50 | 4.00   0.50 |      | 0.50 | 0.50 |      ||  4.0 |      |   vgatherdpd (%rax,%ymm3,8), %zmm5{%k2}
-1.50        | 0.50 | 4.00   0.50 | 4.00   0.50 |      | 0.50 | 0.50 |      ||      |      |   vgatherdpd (%rdx,%ymm3,8), %zmm4{%k1}
-1.50        | 0.50 | 4.00   0.50 | 4.00   0.50 |      | 0.50 | 0.50 |      ||      |      |   vgatherdpd (%rsi,%ymm3,8), %zmm6{%k3}
-0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vsubpd    %zmm5, %zmm1, %zmm29
-0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vsubpd    %zmm4, %zmm0, %zmm28
-0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vsubpd    %zmm6, %zmm2, %zmm31
-0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vmulpd    %zmm29, %zmm29, %zmm20
-0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vfmadd231pd %zmm28, %zmm28, %zmm20
-0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vfmadd231pd %zmm31, %zmm31, %zmm20
-2.50        |      |             |             |      | 0.50 |      |      ||  8.0 |      |   vrcp14pd  %zmm20, %zmm27
-            |      |             |             |      | 1.00 |      |      ||      |      |   vcmppd    $1, %zmm16, %zmm20, %k5
-            |      |             |             |      | 1.00 |      |      ||      |      |   vfpclasspd $30, %zmm27, %k0
-0.50        |      | 0.50   0.50 | 0.50   0.50 |      | 0.50 |      |      ||  4.0 |      |   vfnmadd213pd .L_2il0floatpacket.5(%rip){1to8}, %zmm27, %zmm20
-1.00        |      |             |             |      |      |      |      ||      |      |   knotw     %k0, %k4
-0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vmulpd    %zmm20, %zmm20, %zmm21
-0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vfmadd213pd %zmm27, %zmm20, %zmm27{%k4}
-0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vfmadd213pd %zmm27, %zmm21, %zmm27{%k4}
-0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vmulpd    %zmm15, %zmm27, %zmm22
-0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vmulpd    %zmm14, %zmm27, %zmm24
-0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vmulpd    %zmm22, %zmm27, %zmm25
-0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vmulpd    %zmm25, %zmm27, %zmm23
-0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vfmsub213pd %zmm7, %zmm25, %zmm27
-0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vmulpd    %zmm24, %zmm23, %zmm26
-0.00        |      |             |             |      | 1.00 |      |      ||  4.0 |      |   vmulpd    %zmm27, %zmm26, %zmm30
+            |      |             |             |      |      |      |      ||      |      |   ..B1.25:
+0.00        | 0.00 |             |             |      | 0.00 | 1.00 |      ||  1.0 |  1.0 |   movq      %r8, %r13
+            | 1.00 |             |             |      |      |      |      ||  3.0 |  3.0 |   imulq     %rcx, %r13
+            |      |             |             |      | 1.00 |      |      ||      |      |   vbroadcastsd %xmm6, %zmm2
+            |      |             |             |      | 1.00 |      |      ||      |      |   vbroadcastsd %xmm7, %zmm1
+            |      |             |             |      | 1.00 |      |      ||      |      |   vbroadcastsd %xmm12, %zmm0
+0.00        | 0.00 |             |             |      | 0.00 | 1.00 |      ||      |      |   movslq    %r12d, %rbx
+0.00        | 0.00 |             |             |      | 0.00 | 1.00 |      ||  1.0 |  1.0 |   addq      %r10, %r13
+            |      | 0.00        | 0.00        | 1.00 |      |      | 1.00 ||      |      |   movq      %rax, -64(%rsp)
+            |      | 0.00        | 0.00        | 1.00 |      |      | 1.00 ||      |      |   movq      %r8, -56(%rsp)
+            |      | 0.00        | 0.00        | 1.00 |      |      | 1.00 ||      |      |   movq      %r10, -48(%rsp)
+            |      | 0.00        | 0.00        | 1.00 |      |      | 1.00 ||      |      |   movq      %rsi, -40(%rsp)
+            |      | 0.00        | 0.00        | 1.00 |      |      | 1.00 ||      |      |   movq      %rcx, -32(%rsp)
+            |      | 0.00        | 0.00        | 1.00 |      |      | 1.00 ||      |      |   movq      %r9, -80(%rsp)
+            |      | 0.00        | 0.00        | 1.00 |      |      | 1.00 ||      |      |   movq      %rdx, -72(%rsp)
+            |      | 0.50   0.50 | 0.50   0.50 |      |      |      |      ||  4.0 |      |   vmovdqu   (%r13,%rbx,4), %ymm3
+0.00        | 1.00 |             |             |      | 0.00 |      |      ||  1.0 |      |   vpaddd    %ymm3, %ymm3, %ymm4
+0.00        | 1.00 |             |             |      | 0.00 |      |      ||  1.0 |      |   vpaddd    %ymm4, %ymm3, %ymm3
+            |      | 0.50   0.50 | 0.50   0.50 |      |      |      |      ||      |      |   movl      (%r13,%rbx,4), %r10d
+            |      | 0.50   0.50 | 0.50   0.50 |      |      |      |      ||      |      |   movl      4(%r13,%rbx,4), %r9d
+            |      | 0.50   0.50 | 0.50   0.50 |      |      |      |      ||      |  4.0 |   movl      8(%r13,%rbx,4), %r8d
+            |      | 0.50   0.50 | 0.50   0.50 |      |      |      |      ||      |      |   movl      12(%r13,%rbx,4), %esi
+            | 1.00 |             |             |      | 0.00 |      |      ||      |      |   lea       (%r10,%r10,2), %r10d
+            |      | 0.50   0.50 | 0.50   0.50 |      |      |      |      ||      |      |   movl      16(%r13,%rbx,4), %ecx
+            | 1.00 |             |             |      | 0.00 |      |      ||      |      |   lea       (%r9,%r9,2), %r9d
+            |      | 0.50   0.50 | 0.50   0.50 |      |      |      |      ||      |  4.0 |   movl      8(%r13,%rbx,4), %r8d
+            |      | 0.50   0.50 | 0.50   0.50 |      |      |      |      ||      |      |   movl      12(%r13,%rbx,4), %esi
+            | 1.00 |             |             |      | 0.00 |      |      ||      |      |   lea       (%r10,%r10,2), %r10d
+            |      | 0.50   0.50 | 0.50   0.50 |      |      |      |      ||      |      |   movl      16(%r13,%rbx,4), %ecx
+            | 1.00 |             |             |      | 0.00 |      |      ||      |      |   lea       (%r9,%r9,2), %r9d
+            |      | 0.50   0.50 | 0.50   0.50 |      |      |      |      ||      |      |   movl      20(%r13,%rbx,4), %edx
+            | 1.00 |             |             |      | 0.00 |      |      ||      |  1.0 |   lea       (%r8,%r8,2), %r8d
+            |      | 0.50   0.50 | 0.50   0.50 |      |      |      |      ||      |      |   movl      24(%r13,%rbx,4), %eax
+            | 1.00 |             |             |      | 0.00 |      |      ||      |      |   lea       (%rsi,%rsi,2), %esi
+            |      | 0.50   0.50 | 0.50   0.50 |      |      |      |      ||      |      |   movl      28(%r13,%rbx,4), %r15d
     \end{lstlisting}
   \end{frame}
 
@@ -395,22 +399,70 @@ vgatherdpd zmm18{k3}, QWORD PTR [rdi+ymm3*8]    # zmm18 <- atom->x[j * 3]
                                      Port pressure in cycles
  0   - 0DV  |  1   |  2   -  2D  |  3   -  3D  |  4   |  5   |  6   |  7   ||  CP  | LCD  |
 -------------------------------------------------------------------------------------------------
-0.00        |      |             |             |      | 1.00 |      |      ||      |      |   vfmadd231pd %zmm28, %zmm30, %zmm13{%k5}
-0.00        |      |             |             |      | 1.00 |      |      ||      |  4.0 |   vfmadd231pd %zmm29, %zmm30, %zmm12{%k5}
-0.00        |      |             |             |      | 1.00 |      |      ||  4.0 |      |   vfmadd231pd %zmm31, %zmm30, %zmm11{%k5}
-0.00        | 0.50 |             |             |      | 0.00 | 0.50 |      ||      |      |   cmpl      %ebx, %r9d
-            |      |             |             |      |      |      |      ||      |      | * jb        ..B1.22       # Prob 82%
+            | 1.00 |             |             |      | 0.00 |      |      ||      |      |   lea       (%rcx,%rcx,2), %ecx
+            | 1.00 |             |             |      | 0.00 |      |      ||      |      |   lea       (%rdx,%rdx,2), %edx
+            | 1.00 |             |             |      | 0.00 |      |      ||      |      |   lea       (%rax,%rax,2), %eax
+            | 1.00 |             |             |      | 0.00 |      |      ||      |      |   lea       (%r15,%r15,2), %r15d
+            |      |             |             |      |      |      |      ||      |      |   ..B1.29:
+            |      |             |             |      |      |      |      ||      |      | X vpcmpeqb  %xmm0, %xmm0, %k1
+            |      |             |             |      |      |      |      ||      |      | X vpcmpeqb  %xmm0, %xmm0, %k2
+            |      |             |             |      |      |      |      ||      |      | X vpcmpeqb  %xmm0, %xmm0, %k3
+0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vpxord    %zmm4, %zmm4, %zmm4
+0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vpxord    %zmm17, %zmm17, %zmm17
+0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vpxord    %zmm18, %zmm18, %zmm18
+1.50        | 0.17 | 4.00   0.50 | 4.00   0.50 |      | 0.50 | 0.83 |      ||      |      |   vgatherdpd 16(%rdi,%ymm3,8), %zmm4{%k1}
+1.50        | 0.00 | 4.00   0.50 | 4.00   0.50 |      | 0.50 | 1.00 |      ||  4.0 |      |   vgatherdpd 8(%rdi,%ymm3,8), %zmm17{%k2}
+1.50        | 0.00 | 4.00   0.50 | 4.00   0.50 |      | 0.50 | 1.00 |      ||      |      |   vgatherdpd (%rdi,%ymm3,8), %zmm18{%k3}
+            |      |             |             |      |      |      |      ||      |      |   ..B1.30:
+0.00        | 0.00 |             |             |      | 0.00 | 1.00 |      ||      |      |   addl      $8, %r12d
+0.00        | 0.00 |             |             |      | 0.00 | 1.00 |      ||      |      |   addq      $8, %rbx
+0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vsubpd    %zmm4, %zmm0, %zmm26
+0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vsubpd    %zmm17, %zmm1, %zmm24
+0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vsubpd    %zmm18, %zmm2, %zmm23
+0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vmulpd    %zmm24, %zmm24, %zmm3
+0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vfmadd231pd %zmm23, %zmm23, %zmm3
+0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vfmadd231pd %zmm26, %zmm26, %zmm3
+2.50        |      |             |             |      | 0.50 |      |      ||  8.0 |      |   vrcp14pd  %zmm3, %zmm22
+            |      |             |             |      | 1.00 |      |      ||      |      |   vcmppd    $1, %zmm14, %zmm3, %k2
+            |      |             |             |      | 1.00 |      |      ||      |      |   vfpclasspd $30, %zmm22, %k0
+0.50        |      | 0.50   0.50 | 0.50   0.50 |      | 0.50 |      |      ||  4.0 |      |   vfnmadd213pd .L_2il0floatpacket.9(%rip){1to8}, %zmm22, %zmm3
+1.00        |      |             |             |      |      |      |      ||      |      |   knotw     %k0, %k1
+0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vmulpd    %zmm3, %zmm3, %zmm4
+0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vfmadd213pd %zmm22, %zmm3, %zmm22{%k1}
+0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vfmadd213pd %zmm22, %zmm4, %zmm22{%k1}
+0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vmulpd    %zmm13, %zmm22, %zmm17
+0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vmulpd    %zmm10, %zmm22, %zmm19
+0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vmulpd    %zmm17, %zmm22, %zmm20
+0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vmulpd    %zmm20, %zmm22, %zmm18
+    \end{lstlisting}
+  \end{frame}
 
-17.5          3.00   13.0   2.50   13.0   2.50          17.5   3.00           68.0    4
+  \begin{frame}[fragile]{IACA Analysis}
+    \vspace{-20pt}
+    \begin{lstlisting}[basicstyle=\tt\fontsize{4pt}{6pt}\selectfont]
+                                     Port pressure in cycles
+ 0   - 0DV  |  1   |  2   -  2D  |  3   -  3D  |  4   |  5   |  6   |  7   ||  CP  | LCD  |
+-------------------------------------------------------------------------------------------------
+0.50        |      |             |             |      | 0.50 |      |      ||      |      |   vfmsub213pd %zmm5, %zmm20, %zmm22
+0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vmulpd    %zmm19, %zmm18, %zmm21
+0.50        |      |             |             |      | 0.50 |      |      ||  4.0 |      |   vmulpd    %zmm22, %zmm21, %zmm25
+1.00        |      |             |             |      | 0.00 |      |      ||      |      |   vfmadd231pd %zmm23, %zmm25, %zmm9{%k2}
+1.00        |      |             |             |      | 0.00 |      |      ||      |      |   vfmadd231pd %zmm24, %zmm25, %zmm8{%k2}
+1.00        |      |             |             |      | 0.00 |      |      ||  4.0 |      |   vfmadd231pd %zmm26, %zmm25, %zmm11{%k2}
+0.00        | 0.00 |             |             |      | 0.00 | 1.00 |      ||      |      |   cmpl      %r14d, %r12d
+            |      |             |             |      |      |      |      ||      |      | * jb        ..B1.26       # Prob 82%
 
+21.0          11.2   17.0   6.50   17.0   6.50   7.00   17.0   8.83   7.00    75.0   10.0
 
 Loop-Carried Dependencies Analysis Report
 -----------------------------------------
- 1.0 | addl      $8, %r9d                                      | [257]
- 1.0 | addq      $8, %r14                                      | [261]
- 4.0 | vfmadd231pd %zmm29, %zmm30, %zmm12{%k5}                 | [290]
- 4.0 | vfmadd231pd %zmm28, %zmm30, %zmm13{%k5}                 | [289]
- 4.0 | vfmadd231pd %zmm31, %zmm30, %zmm11{%k5}                 | [291]
+ 6.0 | lea       (%r10,%r10,2), %r10d                          | [269, 283, 287]
+10.0 | lea       (%r8,%r8,2), %r8d                             | [263, 264, 269, 285, 291]
+ 9.0 | lea       (%rcx,%rcx,2), %ecx                           | [264, 269, 288, 295]
+ 1.0 | addl      $8, %r12d                                     | [314]
+ 4.0 | vfmadd231pd %zmm26, %zmm25, %zmm11{%k2}                 | [339]
+ 4.0 | vfmadd231pd %zmm24, %zmm25, %zmm8{%k2}                  | [338]
+ 4.0 | vfmadd231pd %zmm23, %zmm25, %zmm9{%k2}                  | [337]
     \end{lstlisting}
   \end{frame}
 
@@ -520,11 +572,11 @@ There were bubbles in the frontend.
     \end{lstlisting}
   \end{frame}
 
-  \begin{frame}[fragile]{Cycles per iteration with AoS AVX512 kernels}
+  \begin{frame}[fragile]{Cycles per cache line - AVX512 MD-stub AoS force}
     \includegraphics[width=9cm]{results_aos_casclakesp2_neighbor_vol.pdf}
   \end{frame}
 
-  \begin{frame}[fragile]{Cycles per iteration with SoA AVX512 kernels}
+  \begin{frame}[fragile]{Cycles per cache line - AVX512 MD-stub SoA force}
     \includegraphics[width=9cm]{results_soa_casclakesp2_neighbor_vol.pdf}
   \end{frame}
 
@@ -562,7 +614,7 @@ for(int n = 0; n < ntimes; n++) {
     \end{lstlisting}
   \end{frame}
 
-  \begin{frame}[fragile]{Cycles per iteration with SoA AVX512 kernels (repeating internal loop)}
+  \begin{frame}[fragile]{Cycles per cache line - AVX512 MD-stub SoA force  (100 repeats)}
     \includegraphics[width=9cm]{results_soa_casclakesp2_rep_neighbor_vol.pdf}
   \end{frame}
 
@@ -594,7 +646,7 @@ for(int n = 0; n < ntimes; n++) {
     \end{itemize}
   \end{frame}
 
-  \begin{frame}[fragile]{AVX512 Gather (simple array):}
+  \begin{frame}[fragile]{AVX512 Gather (simple array)}
     \vspace{-17.5pt}
     \begin{lstlisting}[language={[x64]Assembler},basicstyle=\tt\tiny]
 ...
@@ -631,11 +683,11 @@ jl 1b
     \end{lstlisting}
   \end{frame}
 
-  \begin{frame}[fragile]{Results for simple array}
+  \begin{frame}[fragile]{Cycles per cache line - AVX512 Gather with simple array on Cascade Lake}
     \includegraphics[width=9cm]{gather_casclakesp2_results.pdf}
   \end{frame}
 
-  \begin{frame}[fragile]{AVX512 Gather (AoS):}
+  \begin{frame}[fragile]{AVX512 Gather (AoS)}
     \vspace{-17.5pt}
     \begin{lstlisting}[language={[x64]Assembler},basicstyle=\tt\tiny]
 ...
@@ -670,8 +722,9 @@ jl 1b
     \end{lstlisting}
   \end{frame}
 
-  \begin{frame}[fragile]{Results for AoS}
-    \includegraphics[width=9cm]{gather_md_skylakesp2_results.pdf}
+  \begin{frame}[fragile]{Cycles per cache line - AVX512 MD-Gather with AoS layout on Skylake}
+    \includegraphics[width=9cm]{gather_md_skylakesp2_results_1_2_4.pdf}
+    %\includegraphics[width=9cm]{gather_md_skylakesp2_results.pdf}
   \end{frame}
 
   \begin{frame}[fragile]{Conclusion}

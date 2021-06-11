@@ -16,8 +16,8 @@ with open(filename, 'r') as fp:
         size = float(size)
         cy_per_it = float(cy_per_it)
 
-        #if stride < 5 and stride != 3:
-        if stride < 100:
+        if stride < 5 and stride != 3:
+        #if stride < 100:
             if stride not in plot_data:
                 plot_data[stride] = {}
 
@@ -32,10 +32,11 @@ for stride in plot_data:
 
 ax.vlines([32, 1000], 0, 1, transform=ax.get_xaxis_transform(), linestyles='dashed', color=['#444444', '#777777'])
 #ax.vlines([32, 1000, 28000], 0, 1, transform=ax.get_xaxis_transform(), linestyles='dashed', color=['#444444', '#777777', '#aaaaaa'])
-ax.set(xlabel='Array size (kB)', ylabel='Cycles per gather')
+ax.set(xlabel='Array size (kB)', ylabel='Cycles per cache line')
+#ax.set(xlabel='Array size (kB)', ylabel='Cycles per gather')
 ax.set_xscale('log')
 #ax.set_xticks([32, 1000, 28000])
 #ax.set_xlim(0, 200000)
-#ax.set_ylim(25, 60)
+ax.set_ylim(25, 60)
 plt.legend(title="Stride")
 fig.savefig(output_file, bbox_inches = 'tight', pad_inches = 0)
